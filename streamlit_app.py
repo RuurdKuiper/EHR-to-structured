@@ -222,7 +222,7 @@ def extract_with_openai(note, api_key):
         client = OpenAI(api_key=api_key)
         
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": f"NOTE:\n{note}"}
@@ -474,7 +474,7 @@ def main():
     """, unsafe_allow_html=True)
     
     # Header
-    st.markdown('<div class="main-header"><h1>🏥 EHR to OMOP CDM Demo</h1><p>Extract structured data from Dutch discharge notes using GPT-4o-mini</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header"><h1>🏥 EHR to OMOP CDM Demo</h1><p>Extract structured data from Dutch discharge notes</p></div>', unsafe_allow_html=True)
     
     # API Key in sidebar
     with st.sidebar:
@@ -493,7 +493,7 @@ def main():
         This demo extracts clinical information from Dutch EHR discharge notes and converts it to OMOP CDM format.
         
         **Features:**
-        - 🤖 GPT-4o-mini extraction
+        - 🤖 EHR extraction
         - 🔍 Evidence highlighting
         - 🗄️ OMOP CDM conversion
         - 🏷️ ICD10→SNOMED mapping
@@ -558,7 +558,7 @@ def main():
     
     # Extract button handler
     if extract_btn and api_key:
-        with st.spinner("Extracting with GPT-4o-mini..."):
+        with st.spinner("Extracting..."):
             extracted = extract_with_openai(patient["discharge_note"], api_key)
             if extracted:
                 st.session_state.extracted = extracted
