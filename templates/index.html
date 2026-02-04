@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EHR to OMOP CDM Demo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            min-height: 100vh;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .model-toggle {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(255,255,255,0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+        }
+        
+        .model-toggle label {
+            font-size: 0.9rem;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 120px;
+            height: 34px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #e74c3c;
+            transition: 0.4s;
+            border-radius: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 10px;
+            font-size: 0.75rem;
+            color: white;
+        }
+        
+        .toggle-slider:before {
+            content: "";
+            position: absolute;
+            left: 8px;
+            font-size: 0.7rem;
+        }
+        
+        .toggle-slider:after {
+            content: "";
+            position: absolute;
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background: #27ae60;
+            justify-content: flex-start;
+        }
+        
+        input:checked + .toggle-slider:before {
+            content: "";
+        }
+        
+        input:checked + .toggle-slider:after {
+            transform: translateX(86px);
+        }
+        
+        .toggle-label-local, .toggle-label-remote {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+        
+        .toggle-label-local.active, .toggle-label-remote.active {
+            opacity: 1;
+            font-weight: 600;
+        }
+        
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+            padding: 1rem;
+            height: calc(100vh - 70px);
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .panel-header h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .panel-header .step {
+            background: #3498db;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        
+        .panel-actions {
+            padding: 1rem;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: center;
+        }
+        
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: white;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .ehr-text {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1rem;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+        }
+
+        .highlight {
+            border-radius: 4px;
+            padding: 1px 2px;
+            color: #111;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: #555;
+        }
+
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #219a52;
+        }
+        
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .extracted-data {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .data-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .data-section h3 {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+        
+        .data-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .data-item .label {
+            font-size: 0.75rem;
+            color: #95a5a6;
+        }
+        
+        .data-item .value {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        
+        .data-item .value.null {
+            color: #bdc3c7;
+            font-style: italic;
+        }
+        
+        .condition-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .condition-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 0.5rem;
+        }
+        
+        .snomed-match {
+            font-size: 0.8rem;
+            color: #666;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f0e5c8;
+        }
+        
+        .snomed-match:last-child {
+            border-bottom: none;
+        }
+        
+        .snomed-match .match-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+        
+        .snomed-match .code {
+            font-family: monospace;
+            background: #fff;
+            padding: 0.1rem 0.3rem;
+            border-radius: 4px;
+        }
+        
+        .snomed-match .similarity {
+            color: #27ae60;
+            font-weight: 500;
+        }
+        
+        .snomed-match .bar-container {
+            background: #e0e0e0;
+            border-radius: 4px;
+            height: 6px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .snomed-match .bar-fill {
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        /* OMOP Tables */
+        .omop-tables {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .omop-table-wrapper {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        
+        .omop-table-header {
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+            color: white;
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .omop-table-header .icon {
+            font-size: 1rem;
+        }
+        
+        .omop-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+        
+        .omop-table th {
+            background: #f8f9fa;
+            padding: 0.6rem 0.5rem;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #e0e0e0;
+            white-space: nowrap;
+        }
+        
+        .omop-table td {
+            padding: 0.5rem;
+            border-bottom: 1px solid #eee;
+            color: #555;
+        }
+        
+        .omop-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .omop-table tr:hover td {
+            background: #f5f7fa;
+        }
+        
+        .concept-id {
+            font-family: monospace;
+            background: #e8f4fd;
+            color: #2980b9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #95a5a6;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .empty-state p {
+            font-size: 0.9rem;
+        }
+        
+        .arrow-indicator {
+            position: absolute;
+            right: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.5rem;
+            color: #bdc3c7;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🏥 EHR to OMOP CDM Demo</h1>
+        <div class="model-toggle">
+            <span class="toggle-label-local active" id="label-local">🏷️ Local (Regex + GLiNER2)</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="model-toggle">
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label-remote" id="label-remote">☁️ OpenAI (GPT-5-mini)</span>
+        </div>
+    </header>
+    
+    <div class="main-container">
+        <!-- Panel 1: Patient Selection & EHR -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="step">1</span>
+                <h2>Select Patient & View EHR</h2>
+            </div>
+            <div class="panel-content">
+                <select id="patient-select">
+                    <option value="">-- Select a patient --</option>
+                </select>
+                <div class="ehr-text" id="ehr-display">
+                    <div class="empty-state">
+                        <div class="icon">📋</div>
+                        <p>Select a patient to view their discharge note</p>
+                    </div>
+                </div>
+                <div class="legend" id="highlight-legend" style="display: none;"></div>
+            </div>
+        </div>
+        
+        <!-- Panel 2: LLM Extraction -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="step">2</span>
+                <h2>LLM Extraction + SNOMED Mapping</h2>
+            </div>
+            <div class="panel-content" id="extraction-content">
+                <div class="empty-state">
+                    <div class="icon">🤖</div>
+                    <p>Click "Extract" to run the LLM on the selected discharge note</p>
+                </div>
+            </div>
+            <div class="panel-actions">
+                <button class="btn btn-primary" id="extract-btn" disabled>
+                    <span>🔍 Extract Details</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Panel 3: OMOP CDM -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="step">3</span>
+                <h2>OMOP Common Data Model</h2>
+            </div>
+            <div class="panel-content" id="omop-content">
+                <div class="empty-state">
+                    <div class="icon">🗄️</div>
+                    <p>Click "Convert to OMOP" to transform extracted data into CDM tables</p>
+                </div>
+            </div>
+            <div class="panel-actions">
+                <button class="btn btn-success" id="convert-btn" disabled>
+                    <span>📊 Convert to OMOP</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // State
+        let patients = [];
+        let selectedPatient = null;
+        let extractedData = null;
+        let snomedMatches = [];
+        let useLocalModel = true;
+        
+        // DOM elements
+        const patientSelect = document.getElementById('patient-select');
+        const ehrDisplay = document.getElementById('ehr-display');
+        const extractBtn = document.getElementById('extract-btn');
+        const convertBtn = document.getElementById('convert-btn');
+        const extractionContent = document.getElementById('extraction-content');
+        const omopContent = document.getElementById('omop-content');
+        const modelToggle = document.getElementById('model-toggle');
+        const labelLocal = document.getElementById('label-local');
+        const labelRemote = document.getElementById('label-remote');
+        const highlightLegend = document.getElementById('highlight-legend');
+
+        const FIELD_COLORS = {
+            'age': '#ffd166',              // Yellow
+            'sex': '#ff6b9d',              // Pink
+            'height': '#74c0fc',           // Light blue
+            'weight': '#63e6be',           // Teal/cyan
+            'bmi': '#8ce99a',              // Light green
+            'smoking_status': '#e599f7',   // Light purple
+            'vital_signs.blood_pressure': '#ffa94d',  // Orange
+            'vital_signs.heart_rate': '#ff8787',      // Coral/red
+            'vital_signs.oxygen_saturation': '#b197fc', // Purple
+            'recent_labs.hbA1c': '#fcc2d7',           // Light pink
+            'recent_labs.creatinine': '#99e9f2',      // Cyan
+            'recent_labs.ldl_cholesterol': '#a5d8ff', // Sky blue
+            'conditions': '#ffec99'                    // Gold/yellow
+        };
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        }
+
+        function renderHighlightedNote(note, evidence = []) {
+            if (!evidence || evidence.length === 0) {
+                ehrDisplay.textContent = note;
+                highlightLegend.style.display = 'none';
+                return;
+            }
+            const spans = evidence
+                .filter(e => Number.isInteger(e.start) && Number.isInteger(e.end) && e.end > e.start)
+                .sort((a, b) => a.start - b.start);
+
+            // Group identical spans so multiple fields sharing the same text render once with multi-color
+            const grouped = new Map();
+            for (const ev of spans) {
+                const key = `${ev.start}-${ev.end}`;
+                if (!grouped.has(key)) {
+                    grouped.set(key, { ...ev, fields: [ev.field] });
+                } else {
+                    const g = grouped.get(key);
+                    if (!g.fields.includes(ev.field)) g.fields.push(ev.field);
+                }
+            }
+
+            // Drop overlaps (keep earliest non-overlapping) to avoid text duplication
+            const filtered = [];
+            let lastEnd = -1;
+            for (const ev of [...grouped.values()].sort((a, b) => a.start - b.start)) {
+                if (ev.start < lastEnd) continue;
+                filtered.push(ev);
+                lastEnd = ev.end;
+            }
+
+            if (filtered.length === 0) {
+                ehrDisplay.textContent = note;
+                highlightLegend.style.display = 'none';
+                return;
+            }
+            let cursor = 0;
+            let html = '';
+            const fieldColorsFor = (fields) => {
+                const colors = fields.map(f => FIELD_COLORS[f] || '#ffe066');
+                if (colors.length === 1) return `background:${colors[0]};`;
+                const n = Math.min(colors.length, 3);
+                const stop = 100 / n;
+                const stops = colors.slice(0, n).map((c, i) => `${c} ${i * stop}% ${(i + 1) * stop}%`);
+                return `background: linear-gradient(90deg, ${stops.join(', ')});`;
+            };
+
+            filtered.forEach(ev => {
+                if (ev.start > cursor) {
+                    html += escapeHtml(note.slice(cursor, ev.start));
+                }
+                const fields = ev.fields && ev.fields.length ? ev.fields : [ev.field];
+                const bgStyle = fieldColorsFor(fields);
+                const label = fields.join(', ');
+                html += `<span class="highlight" style="${bgStyle}" title="${label} (${ev.source || 'regex'})">${escapeHtml(note.slice(ev.start, ev.end))}</span>`;
+                cursor = ev.end;
+            });
+            if (cursor < note.length) {
+                html += escapeHtml(note.slice(cursor));
+            }
+            ehrDisplay.innerHTML = html;
+            // Legend suppressed; color cues will appear in the extraction panel instead
+            highlightLegend.style.display = 'none';
+        }
+        
+        // Initialize
+        async function init() {
+            await loadPatients();
+            setupEventListeners();
+        }
+        
+        // Load patients from API
+        async function loadPatients() {
+            try {
+                const response = await fetch('/api/patients');
+                patients = await response.json();
+                
+                patients.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.patient_id;
+                    option.textContent = p.label;
+                    patientSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to load patients:', error);
+            }
+        }
+        
+        // Setup event listeners
+        function setupEventListeners() {
+            patientSelect.addEventListener('change', onPatientSelect);
+            extractBtn.addEventListener('click', onExtract);
+            convertBtn.addEventListener('click', onConvert);
+            modelToggle.addEventListener('change', onModelToggle);
+        }
+        
+        // Patient selection handler
+        function onPatientSelect() {
+            const patientId = parseInt(patientSelect.value);
+            selectedPatient = patients.find(p => p.patient_id === patientId);
+            
+            if (selectedPatient) {
+                ehrDisplay.textContent = selectedPatient.discharge_note;
+                highlightLegend.style.display = 'none';
+                extractBtn.disabled = false;
+                
+                // Reset extraction and OMOP
+                extractedData = null;
+                snomedMatches = [];
+                extractionContent.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🤖</div>
+                        <p>Click "Extract" to run the LLM on the selected discharge note</p>
+                    </div>
+                `;
+                omopContent.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🗄️</div>
+                        <p>Click "Convert to OMOP" to transform extracted data into CDM tables</p>
+                    </div>
+                `;
+                convertBtn.disabled = true;
+            } else {
+                ehrDisplay.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📋</div>
+                        <p>Select a patient to view their discharge note</p>
+                    </div>
+                `;
+                extractBtn.disabled = true;
+            }
+        }
+        
+        // Model toggle handler
+        function onModelToggle() {
+            useLocalModel = !modelToggle.checked;
+            labelLocal.classList.toggle('active', useLocalModel);
+            labelRemote.classList.toggle('active', !useLocalModel);
+        }
+        
+        // Extract handler
+        async function onExtract() {
+            if (!selectedPatient) return;
+            
+            extractBtn.disabled = true;
+            extractBtn.innerHTML = '<div class="spinner"></div><span>Extracting...</span>';
+            
+            try {
+                const response = await fetch('/api/extract', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        discharge_note: selectedPatient.discharge_note,
+                        use_local: useLocalModel
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                
+                extractedData = result.extracted;
+                snomedMatches = result.snomed_matches || [];
+                
+                renderHighlightedNote(selectedPatient.discharge_note, extractedData.evidence || []);
+                renderExtractedData();
+                convertBtn.disabled = false;
+                
+            } catch (error) {
+                extractionContent.innerHTML = `
+                    <div class="empty-state" style="color: #e74c3c;">
+                        <div class="icon">⚠️</div>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                extractBtn.disabled = false;
+                extractBtn.innerHTML = '<span>🔍 Extract Details</span>';
+            }
+        }
+        
+        // Render extracted data
+        function renderExtractedData() {
+            const formatValue = (val) => {
+                if (val === null || val === undefined) return '<span class="null">—</span>';
+                return val;
+            };
+
+            const colorValue = (field, valText) => {
+                const color = FIELD_COLORS[field] || '#ffe066';
+                return `<span class="highlight" style="background:${color};">${valText}</span>`;
+            };
+            
+            let html = '<div class="extracted-data">';
+            
+            // Helper to get value and unit from object or plain value
+            const getValUnit = (obj, defaultUnit) => {
+                if (obj === null || obj === undefined) return { val: null, unit: defaultUnit };
+                if (typeof obj === 'object' && 'value' in obj) {
+                    return { val: obj.value, unit: obj.unit || defaultUnit };
+                }
+                return { val: obj, unit: defaultUnit };
+            };
+            
+            const height = getValUnit(extractedData.height, 'cm');
+            const weight = getValUnit(extractedData.weight, 'kg');
+            const bmi = getValUnit(extractedData.bmi, 'kg/m²');
+            
+            // Demographics
+            html += `
+                <div class="data-section">
+                    <h3>👤 Demographics</h3>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <span class="label">Age</span>
+                            <span class="value">${extractedData.age !== null && extractedData.age !== undefined ? colorValue('age', extractedData.age) : formatValue(null)}</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Sex</span>
+                            <span class="value">${extractedData.sex ? colorValue('sex', extractedData.sex) : formatValue(null)}</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Height</span>
+                            <span class="value">${height.val !== null ? colorValue('height', height.val + ' ' + height.unit) : formatValue(null)}</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Weight</span>
+                            <span class="value">${weight.val !== null ? colorValue('weight', weight.val + ' ' + weight.unit) : formatValue(null)}</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">BMI</span>
+                            <span class="value">${bmi.val !== null ? colorValue('bmi', parseFloat(bmi.val).toFixed(1) + ' ' + bmi.unit) : formatValue(null)}</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Smoking</span>
+                            <span class="value">${extractedData.smoking_status ? colorValue('smoking_status', extractedData.smoking_status) : formatValue(null)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Condition with SNOMED matches
+            if (extractedData.conditions && extractedData.conditions.length > 0) {
+                const condition = extractedData.conditions[0];
+                html += `
+                    <div class="condition-box">
+                        <div class="condition-name">🏥 ${condition.name ? colorValue('conditions', condition.name) : 'Unknown'}</div>
+                        <div style="font-size: 0.8rem; color: #856404; margin-bottom: 0.5rem;">SNOMED (via ICD10) Matches:</div>
+                `;
+                
+                if (snomedMatches.length > 0) {
+                    snomedMatches.forEach(match => {
+                        const percentage = (match.similarity * 100).toFixed(1);
+                        html += `
+                            <div class="snomed-match">
+                                <div class="match-info">
+                                    <span>
+                                        <span class="code">ICD10 ${match.icd10_code || ''}</span> ${match.icd10_description || ''}<br/>
+                                        <span class="code">SNOMED ${match.snomed_code || ''}</span> ${match.snomed_description || ''}
+                                    </span>
+                                    <span class="similarity">${percentage}%</span>
+                                </div>
+                                <div class="bar-container">
+                                    <div class="bar-fill" style="width: ${percentage}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += '<div style="font-size: 0.8rem; color: #999;">No matches found</div>';
+                }
+                
+                html += '</div>';
+            }
+            
+            // Labs
+            const labs = extractedData.recent_labs || {};
+            const hba1c = getValUnit(labs.hbA1c, '%');
+            const creat = getValUnit(labs.creatinine, 'mg/dL');
+            const ldl = getValUnit(labs.ldl_cholesterol, 'mg/dL');
+            html += `
+                <div class="data-section">
+                    <h3>🧪 Recent Labs</h3>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <span class="label">HbA1c</span>
+                            <span class="value">${hba1c.val !== null ? colorValue('recent_labs.hbA1c', hba1c.val + ' ' + hba1c.unit) : formatValue(null)}</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Creatinine</span>
+                            <span class="value">${creat.val !== null ? colorValue('recent_labs.creatinine', creat.val + ' ' + creat.unit) : formatValue(null)}</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">LDL Cholesterol</span>
+                            <span class="value">${ldl.val !== null ? colorValue('recent_labs.ldl_cholesterol', ldl.val + ' ' + ldl.unit) : formatValue(null)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Vital signs
+            const vitals = extractedData.vital_signs || {};
+            const bp = getValUnit(vitals.blood_pressure, 'mmHg');
+            const hr = getValUnit(vitals.heart_rate, 'bpm');
+            const spo2 = getValUnit(vitals.oxygen_saturation, '%');
+            html += `
+                <div class="data-section">
+                    <h3>💓 Vital Signs</h3>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <span class="label">Blood Pressure</span>
+                            <span class="value">${bp.val ? colorValue('vital_signs.blood_pressure', bp.val + ' ' + bp.unit) : formatValue(null)}</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Heart Rate</span>
+                            <span class="value">${hr.val !== null ? colorValue('vital_signs.heart_rate', hr.val + ' ' + hr.unit) : formatValue(null)}</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">O₂ Saturation</span>
+                            <span class="value">${spo2.val !== null ? colorValue('vital_signs.oxygen_saturation', spo2.val + ' ' + spo2.unit) : formatValue(null)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            html += '</div>';
+            extractionContent.innerHTML = html;
+        }
+        
+        // Convert to OMOP handler
+        async function onConvert() {
+            if (!extractedData || !selectedPatient) return;
+            
+            convertBtn.disabled = true;
+            convertBtn.innerHTML = '<div class="spinner"></div><span>Converting...</span>';
+            
+            try {
+                const response = await fetch('/api/convert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        extracted: extractedData,
+                        patient_id: selectedPatient.patient_id,
+                        snomed_matches: snomedMatches
+                    })
+                });
+                
+                const omop = await response.json();
+                
+                if (omop.error) {
+                    throw new Error(omop.error);
+                }
+                
+                renderOMOP(omop);
+                
+            } catch (error) {
+                omopContent.innerHTML = `
+                    <div class="empty-state" style="color: #e74c3c;">
+                        <div class="icon">⚠️</div>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                convertBtn.disabled = false;
+                convertBtn.innerHTML = '<span>📊 Convert to OMOP</span>';
+            }
+        }
+        
+        // Render OMOP tables
+        function renderOMOP(omop) {
+            let html = '<div class="omop-tables">';
+            
+            // PERSON table
+            if (omop.PERSON && omop.PERSON.length > 0) {
+                html += `
+                    <div class="omop-table-wrapper">
+                        <div class="omop-table-header">
+                            <span class="icon">👤</span> PERSON
+                        </div>
+                        <table class="omop-table">
+                            <thead>
+                                <tr>
+                                    <th>person_id</th>
+                                    <th>gender_concept_id</th>
+                                    <th>gender_source_value</th>
+                                    <th>year_of_birth</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                omop.PERSON.forEach(row => {
+                    html += `
+                        <tr>
+                            <td>${row.person_id}</td>
+                            <td><span class="concept-id">${row.gender_concept_id}</span></td>
+                            <td>${row.gender_source_value || '—'}</td>
+                            <td>${row.year_of_birth || '—'}</td>
+                        </tr>
+                    `;
+                });
+                html += '</tbody></table></div>';
+            }
+            
+            // CONDITION_OCCURRENCE table
+            if (omop.CONDITION_OCCURRENCE && omop.CONDITION_OCCURRENCE.length > 0) {
+                html += `
+                    <div class="omop-table-wrapper">
+                        <div class="omop-table-header">
+                            <span class="icon">🏥</span> CONDITION_OCCURRENCE
+                        </div>
+                        <table class="omop-table">
+                            <thead>
+                                <tr>
+                                    <th>condition_occurrence_id</th>
+                                    <th>person_id</th>
+                                    <th>condition_concept_id</th>
+                                    <th>condition_source_value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                omop.CONDITION_OCCURRENCE.forEach(row => {
+                    html += `
+                        <tr>
+                            <td>${row.condition_occurrence_id}</td>
+                            <td>${row.person_id}</td>
+                            <td><span class="concept-id">${row.condition_concept_id}</span></td>
+                            <td>${row.condition_source_value || '—'}</td>
+                        </tr>
+                    `;
+                });
+                html += '</tbody></table></div>';
+            }
+            
+            // MEASUREMENT table
+            if (omop.MEASUREMENT && omop.MEASUREMENT.length > 0) {
+                html += `
+                    <div class="omop-table-wrapper">
+                        <div class="omop-table-header">
+                            <span class="icon">🧪</span> MEASUREMENT
+                        </div>
+                        <table class="omop-table">
+                            <thead>
+                                <tr>
+                                    <th>measurement_id</th>
+                                    <th>person_id</th>
+                                    <th>measurement_concept_id</th>
+                                    <th>measurement_source_value</th>
+                                    <th>value_as_number</th>
+                                    <th>unit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                omop.MEASUREMENT.forEach(row => {
+                    html += `
+                        <tr>
+                            <td>${row.measurement_id}</td>
+                            <td>${row.person_id}</td>
+                            <td><span class="concept-id">${row.measurement_concept_id}</span></td>
+                            <td>${row.measurement_source_value || '—'}</td>
+                            <td>${row.value_as_number ?? '—'}</td>
+                            <td>${row.unit_source_value || '—'}</td>
+                        </tr>
+                    `;
+                });
+                html += '</tbody></table></div>';
+            }
+            
+            // OBSERVATION table
+            if (omop.OBSERVATION && omop.OBSERVATION.length > 0) {
+                html += `
+                    <div class="omop-table-wrapper">
+                        <div class="omop-table-header">
+                            <span class="icon">📋</span> OBSERVATION
+                        </div>
+                        <table class="omop-table">
+                            <thead>
+                                <tr>
+                                    <th>observation_id</th>
+                                    <th>person_id</th>
+                                    <th>observation_concept_id</th>
+                                    <th>observation_source_value</th>
+                                    <th>value_as_number</th>
+                                    <th>unit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                omop.OBSERVATION.forEach(row => {
+                    html += `
+                        <tr>
+                            <td>${row.observation_id}</td>
+                            <td>${row.person_id}</td>
+                            <td><span class="concept-id">${row.observation_concept_id}</span></td>
+                            <td>${row.observation_source_value || '—'}</td>
+                            <td>${row.value_as_number ?? '—'}</td>
+                            <td>${row.unit_source_value || '—'}</td>
+                        </tr>
+                    `;
+                });
+                html += '</tbody></table></div>';
+            }
+            
+            html += '</div>';
+            omopContent.innerHTML = html;
+        }
+        
+        // Start
+        init();
+    </script>
+</body>
+</html>

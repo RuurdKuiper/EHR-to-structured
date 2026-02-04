@@ -1,0 +1,18 @@
+# EHR to OMOP CDM Demo - Requirements
+
+# Web framework
+flask>=3.0.0
+python-dotenv>=1.0.0
+requests>=2.31.0  # for Athena API calls
+
+# Data handling
+pandas>=2.0.0
+pyarrow>=14.0.0  # for parquet support
+
+# ML/AI
+torch>=2.0.0
+sentence-transformers>=2.2.0
+gliner>=0.2.0
+
+# OpenAI (for remote model)
+openai>=1.0.0

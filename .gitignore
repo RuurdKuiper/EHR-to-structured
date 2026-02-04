@@ -1,0 +1,8 @@
+.env
+secrets.toml
+.DS_Store
+__pycache__/
+.ipynb_checkpoints
+Breakout Session #3 - Free text to structured data.docx
+EHR_to_structure.ipynb
+
